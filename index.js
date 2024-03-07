@@ -1,20 +1,17 @@
 require('dotenv').config();
 const stream = require("./stream");
-const axios = require('axios');
+const axios = require('axios').default;
 const { Telegraf } = require('telegraf');
-const Binance = require('binance-api-node').default;
-const { log, info, error } = require('console')
+const { log, info, error } = require('console');
+const { Spot } = require('@binance/connector');
 
 const QUOTE = process.env.QUOTE;
 const PROFITABILITY = parseFloat(process.env.PROFITABILITY);
 const AMOUNT = parseFloat(process.env.AMOUNT);
 const CRAWLER_INTERVAL = parseInt(process.env.CRAWLER_INTERVAL);
-const bot = new Telegraf(process.env.TELEGRAM_API_BOT);
 
-// const client = Binance({
-//   apiKey: process.env.API_KEY,
-//   apiSecret: process.env.SECRET_KEY,
-// });
+const bot = new Telegraf(process.env.TELEGRAM_API_BOT);
+const client = new Spot(process.env.API_KEY, process.env.SECRET_KEY,);
 
 async function exchangeInfo() {
   const response = await axios.get("https://api.binance.com/api/v3/exchangeInfo");
@@ -72,7 +69,7 @@ function getSymbolMap(symbols) {
   return map;
 }
 
-async function processBuyBuySell(buyBuySell) {
+async function processBuyBuySell(buyBuySell, balance) {
   for (let i = 0; i < buyBuySell.length; i++) {
     const candidate = buyBuySell[i];
 
@@ -93,10 +90,62 @@ async function processBuyBuySell(buyBuySell) {
     //se tem o preço dos 3, pode analisar a lucratividade
     const crossRate = (1 / priceBuy1) * (1 / priceBuy2) * priceSell1;
     if (crossRate > PROFITABILITY) {
-      const MSG1 = `OP BBS EM ${candidate.buy1.symbol} > ${candidate.buy2.symbol} > ${candidate.sell1.symbol} = ${crossRate}`;
-      const MSG2 = `Investindo ${QUOTE}${AMOUNT}, retorna ${QUOTE}${((AMOUNT / priceBuy1) / priceBuy2) * priceSell1}`;
-      console.log(MSG1);
-      console.log(MSG2);
+      const orderExample1 = {
+        symbol: candidate.buy1.symbol,
+        side: 'BUY',
+        type: 'LIMIT',
+        price: priceBuy1,
+        quantity: balance,
+        timeInForce: 'GTC'
+      };
+      const orderExample2 = {
+        symbol: candidate.buy2.symbol,
+        side: 'BUY',
+        type: 'LIMIT',
+        price: priceBuy2,
+        quantity: balance,
+        timeInForce: 'GTC'
+      };
+      const orderExample3 = {
+        symbol: candidate.sell1.symbol,
+        side: 'SELL',
+        type: 'LIMIT',
+        price: priceSell1,
+        quantity: balance,
+        timeInForce: 'GTC'
+      };
+      try {
+        const [order1, order2, order3] = await Promise.all([
+          await client.newOrder(orderExample1.symbol, orderExample1.side, orderExample1.type, {
+            price: orderExample1.price.toString(),
+            quantity: parseInt(orderExample1.quantity),
+            timeInForce: 'GTC'
+          }),
+          await client.newOrder(orderExample2.symbol, orderExample2.side, orderExample2.type, {
+            price: orderExample2.price.toString(),
+            quantity: parseInt(orderExample2.quantity),
+            timeInForce: 'GTC'
+          }),
+          await client.newOrder(orderExample3.symbol, orderExample3.side, orderExample3.type, {
+            price: orderExample3.price.toString(),
+            quantity: parseInt(orderExample3.quantity),
+            timeInForce: 'GTC'
+          }),
+        ]);
+        bot.telegram.sendMessage(process.env.CHAT_ID, JSON.stringify({
+          order1, order2, order3,
+          date: new Date()
+        }));
+      } catch (error) {
+        console.log({
+          error: error.response
+        })
+        bot.telegram.sendMessage(process.env.CHAT_ID, JSON.stringify({
+          error,
+          date: new Date()
+        }));
+      }
+
       bot.telegram.sendMessage(process.env.CHAT_ID, `
       BUY BUY SELL - ${candidate.buy1.symbol} > ${candidate.buy2.symbol} > ${candidate.sell1.symbol}
       INVEST: ${AMOUNT} - ${QUOTE}
@@ -105,7 +154,7 @@ async function processBuyBuySell(buyBuySell) {
   }
 }
 
-function processBuySellSell(buySellSell) {
+async function processBuySellSell(buySellSell, balance) {
   for (let i = 0; i < buySellSell.length; i++) {
     const candidate = buySellSell[i];
 
@@ -125,36 +174,76 @@ function processBuySellSell(buySellSell) {
     //se tem o preço dos 3, pode analisar a lucratividade
     const crossRate = (1 / priceBuy1) * priceSell1 * priceSell2;
     if (crossRate > PROFITABILITY) {
-      const MSG1 = `OP BSS EM ${candidate.buy1.symbol} > ${candidate.sell1.symbol} > ${candidate.sell2.symbol} = ${crossRate}`;
-      const MSG2 = `Investindo ${QUOTE}${AMOUNT}, retorna ${QUOTE}${((AMOUNT / priceBuy1) * priceSell1) * priceSell2}`;
-      console.log(MSG1);
-      console.log(MSG2);
+      const orderExample1 = {
+        symbol: candidate.buy1.symbol,
+        side: 'BUY',
+        type: 'LIMIT',
+        price: priceBuy1,
+        quantity: balance,
+        timeInForce: 'GTC'
+      };
+      const orderExample2 = {
+        symbol: candidate.sell1.symbol,
+        side: 'SELL',
+        type: 'LIMIT',
+        price: priceSell1,
+        quantity: balance,
+        timeInForce: 'GTC'
+      };
+      const orderExample3 = {
+        symbol: candidate.sell2.symbol,
+        side: 'SELL',
+        type: 'LIMIT',
+        price: priceSell2,
+        quantity: balance,
+        timeInForce: 'GTC'
+      };
+      try {
+        const [order1, order2, order3] = await Promise.all([
+          await client.newOrder(orderExample1.symbol, orderExample1.side, orderExample1.type, {
+            price: orderExample1.price.toString(),
+            quantity: parseInt(orderExample1.quantity),
+            timeInForce: 'GTC'
+          }),
+          await client.newOrder(orderExample2.symbol, orderExample2.side, orderExample2.type, {
+            price: orderExample2.price.toString(),
+            quantity: parseInt(orderExample2.quantity),
+            timeInForce: 'GTC'
+          }),
+          await client.newOrder(orderExample3.symbol, orderExample3.side, orderExample3.type, {
+            price: orderExample3.price.toString(),
+            quantity: parseInt(orderExample3.quantity),
+            timeInForce: 'GTC'
+          }),
+        ]);
+        bot.telegram.sendMessage(process.env.CHAT_ID, JSON.stringify({
+          order1, order2, order3,
+          date: new Date()
+        }));
+      } catch (error) {
+        console.log({
+          error: error.response
+        })
+        bot.telegram.sendMessage(process.env.CHAT_ID, JSON.stringify({
+          error,
+          date: new Date()
+        }));
+      }
 
       bot.telegram.sendMessage(process.env.CHAT_ID, `
       BUY SELL SELL - ${candidate.buy1.symbol} > ${candidate.sell1.symbol} > ${candidate.sell2.symbol}
       INVEST: ${QUOTE}${AMOUNT}
       RETURN: ${QUOTE}${((AMOUNT / priceBuy1) * priceSell1) * priceSell2}
       `);
-
     }
   }
 }
 
 async function start() {
-  // const balance = await client.accountInfo();
-  // info('Seu saldo em ETH é: ', balance.balances.filter(f => f.asset === 'ETH').map(b => [b.asset] = b.free));
-  // info('Creating order binance test...');
-  // const data = {
-  //   symbol: 'BTCUSDT',
-  //   side: 'BUY',
-  //   type: 'MARKET',
-  //   quantity: "0.0001",
-  //   timestamp: Date.now(),
-  //   recvWindow: 60000,
-  // };
 
-  // const resOrder = await client
-  //   .order(data);
+  const { data } = await client.account();
+  const USDTvalue = data?.balances.filter(f => f.asset === QUOTE).map(b => b.free);
+  info('Seu saldo em USDT é: ', USDTvalue);
 
   //pega todas moedas que estão sendo negociadas
   log('Loading Exchange Info...');
@@ -177,8 +266,8 @@ async function start() {
 
   setInterval(async () => {
     log(new Date());
-    processBuyBuySell(buyBuySell);
-    processBuySellSell(buySellSell);
+    processBuyBuySell(buyBuySell, USDTvalue);
+    processBuySellSell(buySellSell, USDTvalue);
   }, CRAWLER_INTERVAL)
 }
 start();

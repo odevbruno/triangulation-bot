@@ -10,6 +10,7 @@
   "author": "",
   "license": "ISC",
   "dependencies": {
+    "@binance/connector": "^3.2.0",
     "axios": "^1.6.7",
     "binance-api-node": "^0.12.7",
     "cors": "^2.8.5",
