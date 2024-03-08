@@ -266,8 +266,8 @@ async function start() {
 
   setInterval(async () => {
     log(new Date());
-    processBuyBuySell(buyBuySell, USDTvalue);
-    processBuySellSell(buySellSell, USDTvalue);
+    processBuyBuySell(buyBuySell, value);
+    processBuySellSell(buySellSell, value);
   }, CRAWLER_INTERVAL)
 }
 start();
