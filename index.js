@@ -242,8 +242,8 @@ async function processBuySellSell(buySellSell, balance) {
 async function start() {
 
   const { data } = await client.account();
-  const value = data?.balances.filter(f => f.asset === QUOTE).map(b => b.free);
-  info(`Your balance in ${QUOTE} is: `, value);
+  const balance = data?.balances.filter(f => f.asset === QUOTE).map(b => b.free);
+  info(`Your balance in ${QUOTE} is: `, balance);
 
   //pega todas moedas que estão sendo negociadas
   log('Loading Exchange Info...');
@@ -266,8 +266,8 @@ async function start() {
 
   setInterval(async () => {
     log(new Date());
-    processBuyBuySell(buyBuySell, value);
-    processBuySellSell(buySellSell, value);
+    processBuyBuySell(buyBuySell, balance);
+    processBuySellSell(buySellSell, balance);
   }, CRAWLER_INTERVAL)
 }
 start();
