@@ -15,13 +15,13 @@ const client = new Spot(process.env.API_KEY, process.env.SECRET_KEY,);
 
 async function exchangeInfo() {
   const response = await axios.get("https://api.binance.com/api/v3/exchangeInfo");
-  return response.data.symbols.filter(s => s.status === 'TRADING').map(s => {
-    return {
+  return response.data.symbols.filter(s => s.status === 'TRADING').map(s => 
+    ({
       symbol: s.symbol,
       base: s.baseAsset,
       quote: s.quoteAsset
-    }
-  });
+    })
+  );
 }
 
 function getBuyBuySell(buySymbols, allSymbols, symbolsMap) {
