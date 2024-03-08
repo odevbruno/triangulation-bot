@@ -243,7 +243,7 @@ async function start() {
 
   const { data } = await client.account();
   const value = data?.balances.filter(f => f.asset === QUOTE).map(b => b.free);
-  info(`Seu saldo em ${QUOTE} é: `, value);
+  info(`Your balance in ${QUOTE} is: `, value);
 
   //pega todas moedas que estão sendo negociadas
   log('Loading Exchange Info...');
