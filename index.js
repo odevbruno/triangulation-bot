@@ -242,8 +242,8 @@ async function processBuySellSell(buySellSell, balance) {
 async function start() {
 
   const { data } = await client.account();
-  const USDTvalue = data?.balances.filter(f => f.asset === QUOTE).map(b => b.free);
-  info('Seu saldo em USDT é: ', USDTvalue);
+  const value = data?.balances.filter(f => f.asset === QUOTE).map(b => b.free);
+  info(`Seu saldo em ${QUOTE} é: `, value);
 
   //pega todas moedas que estão sendo negociadas
   log('Loading Exchange Info...');
